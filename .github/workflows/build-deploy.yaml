@@ -1,0 +1,228 @@
+name: Build and Deploy to Cloud Run
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  GCP_REGION: us-central1
+  SERVICE_NAME: blumelein-server
+  DOCKER_REPOSITORY: blumelein-docker
+
+jobs:
+  version_bump:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.psr.outputs.version }}
+      tag: ${{ steps.psr.outputs.tag }}
+      released: ${{ steps.psr.outputs.released }}
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - name: ⚙️ Set up repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # important for tags
+
+      - name: ⚙️ Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: 📦 Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install uv
+          uv sync --group dev
+
+      - name: 📦 Run Semantic Release
+        id: psr
+        uses: python-semantic-release/python-semantic-release@v10
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Show computed version/tag
+        run: |
+          echo "Version:   ${{ steps.psr.outputs.version }}"
+          echo "Tag:       ${{ steps.psr.outputs.tag }}"
+          echo "Released:  ${{ steps.psr.outputs.released }}"
+
+  build-and-push:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    needs: version_bump
+    if: |
+      github.ref == 'refs/heads/main' &&
+      needs.version_bump.outputs.released == 'true'
+    environment: production
+    outputs:
+      image_tag: ${{ steps.export.outputs.image_tag }}
+    
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🔐 Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_CREDENTIALS }}
+
+      - name: ⚙️ Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: 🔐 Configure Docker authentication
+        run: |
+          gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev --quiet
+
+      - name: 🏗️ Build Docker image
+        run: |
+          IMAGE_TAG="${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.DOCKER_REPOSITORY }}/${{ env.SERVICE_NAME }}:${{ needs.version_bump.outputs.version }}"
+          LATEST_TAG="${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.DOCKER_REPOSITORY }}/${{ env.SERVICE_NAME }}:latest"
+          
+          echo "Building image: $IMAGE_TAG"
+          docker build \
+            --platform linux/amd64 \
+            --tag $IMAGE_TAG \
+            --tag $LATEST_TAG \
+            .
+          
+          echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
+          echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_ENV
+
+      - name: 📤 Push Docker image
+        run: |
+          docker push $IMAGE_TAG
+          docker push $LATEST_TAG
+
+      - name: 📦 Export image tag
+        id: export
+        run: |
+          echo "image_tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+  terraform-deploy:
+    name: Deploy Infrastructure with Terraform
+    runs-on: ubuntu-latest
+    environment: production
+    needs: build-and-push
+    
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🔐 Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_CREDENTIALS }}
+
+      - name: ⚙️ Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: ⚙️ Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.0"
+
+      - name: 📝 Generate terraform.tfvars
+        run: |
+          sed -e "s|{{GCP_PROJECT_ID}}|${{ secrets.GCP_PROJECT_ID }}|g" \
+              -e "s|{{GCP_REGION}}|${{ env.GCP_REGION }}|g" \
+              -e "s|{{FIRESTORE_LOCATION}}|${{ vars.FIRESTORE_LOCATION || env.GCP_REGION }}|g" \
+              -e "s|{{SERVER_IMAGE_TAG}}|${{ needs.build-and-push.outputs.image_tag }}|g" \
+              -e "s|{{ENVIRONMENT}}|${{ vars.ENVIRONMENT || 'production' }}|g" \
+              -e "s|{{STRIPE_API_KEY}}|${{ secrets.STRIPE_API_KEY }}|g" \
+              -e "s|{{STRIPE_PUBLISHABLE_KEY}}|${{ secrets.STRIPE_PUBLISHABLE_KEY }}|g" \
+              -e "s|{{STRIPE_WEBHOOK_SECRET}}|${{ secrets.STRIPE_WEBHOOK_SECRET }}|g" \
+              -e "s|{{ADMIN_API_KEY}}|${{ secrets.ADMIN_API_KEY }}|g" \
+              -e "s|{{ALLOWED_ORIGINS}}|${{ vars.ALLOWED_ORIGINS || 'https://yourdomain.com' }}|g" \
+              -e "s|{{SERVICE_NAME}}|${{ env.SERVICE_NAME }}|g" \
+              -e "s|{{MIN_INSTANCES}}|${{ vars.MIN_INSTANCES || '0' }}|g" \
+              -e "s|{{MAX_INSTANCES}}|${{ vars.MAX_INSTANCES || '10' }}|g" \
+              -e "s|{{MEMORY_LIMIT}}|${{ vars.MEMORY_LIMIT || '512Mi' }}|g" \
+              -e "s|{{CPU_LIMIT}}|${{ vars.CPU_LIMIT || '1000m' }}|g" \
+              terraform/terraform.tfvars.template > terraform/terraform.tfvars
+          
+          echo "Generated terraform.tfvars:"
+          cat terraform/terraform.tfvars | grep -v "api_key\|secret"
+
+      - name: 🔧 Terraform Init
+        working-directory: ./terraform
+        run: |
+          rm -f .terraform.lock.hcl
+          terraform init \
+            -backend-config="bucket=${{ secrets.TERRAFORM_STATE_BUCKET }}" \
+            -backend-config="prefix=terraform/state" \
+            -upgrade
+
+      - name: ✅ Terraform Validate
+        working-directory: ./terraform
+        run: terraform validate
+
+      - name: 📦 Import Existing Resources
+        working-directory: ./terraform
+        run: |
+          # Import Firestore database if it exists
+          terraform import google_firestore_database.main projects/${{ secrets.GCP_PROJECT_ID }}/databases/\(default\) || true
+          
+          # Import Artifact Registry repository if it exists
+          terraform import google_artifact_registry_repository.docker projects/${{ secrets.GCP_PROJECT_ID }}/locations/${{ env.GCP_REGION }}/repositories/blumelein-docker || true
+          
+          # Import Cloud Run service if it exists
+          terraform import google_cloud_run_service.server locations/${{ env.GCP_REGION }}/namespaces/${{ secrets.GCP_PROJECT_ID }}/services/${{ env.SERVICE_NAME }} || true
+          
+          # Import service account if it exists
+          terraform import google_service_account.cloudrun projects/${{ secrets.GCP_PROJECT_ID }}/serviceAccounts/${{ env.SERVICE_NAME }}-sa@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com || true
+          
+          # Import IAM bindings if they exist
+          terraform import google_project_iam_member.cloudrun_firestore "${{ secrets.GCP_PROJECT_ID }} roles/datastore.user serviceAccount:${{ env.SERVICE_NAME }}-sa@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com" || true
+          terraform import google_project_iam_member.cloudrun_logging "${{ secrets.GCP_PROJECT_ID }} roles/logging.logWriter serviceAccount:${{ env.SERVICE_NAME }}-sa@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com" || true
+          
+          # Import Cloud Run IAM binding for public access
+          terraform import google_cloud_run_service_iam_member.server_public "v1/projects/${{ secrets.GCP_PROJECT_ID }}/locations/${{ env.GCP_REGION }}/services/${{ env.SERVICE_NAME }} roles/run.invoker allUsers" || true
+
+      - name: 📋 Terraform Plan
+        working-directory: ./terraform
+        run: terraform plan -out=tfplan
+
+      - name: 🚀 Terraform Apply
+        working-directory: ./terraform
+        run: terraform apply -auto-approve tfplan
+
+      - name: 📊 Get Service URL
+        id: get-url
+        working-directory: ./terraform
+        run: |
+          SERVICE_URL=$(terraform output -raw service_url)
+          echo "service_url=$SERVICE_URL" >> $GITHUB_OUTPUT
+          echo "🌐 Service deployed to: $SERVICE_URL"
+
+      - name: 🧹 Cleanup
+        if: always()
+        run: |
+          rm -f terraform/terraform.tfvars
+          rm -f terraform/tfplan
+
+      - name: 📢 Deployment Summary
+        run: |
+          echo "## 🎉 Deployment Successful!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version**: ${{ needs.version_bump.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Service URL**: ${{ steps.get-url.outputs.service_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image**: ${{ needs.build-and-push.outputs.image_tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Region**: ${{ env.GCP_REGION }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+

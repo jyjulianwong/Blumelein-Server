@@ -1,0 +1,29 @@
+# Google Cloud Project Configuration
+gcp_project_id    = "{{GCP_PROJECT_ID}}"
+gcp_region        = "{{GCP_REGION}}"
+firestore_location = "{{FIRESTORE_LOCATION}}"
+
+# Docker Image
+server_image_tag = "{{SERVER_IMAGE_TAG}}"
+
+# Environment
+environment = "{{ENVIRONMENT}}"
+
+# Stripe Configuration
+stripe_api_key         = "{{STRIPE_API_KEY}}"
+stripe_publishable_key = "{{STRIPE_PUBLISHABLE_KEY}}"
+stripe_webhook_secret  = "{{STRIPE_WEBHOOK_SECRET}}"
+
+# Admin Configuration
+admin_api_key = "{{ADMIN_API_KEY}}"
+
+# CORS Configuration
+allowed_origins = "{{ALLOWED_ORIGINS}}"
+
+# Cloud Run Configuration
+service_name  = "{{SERVICE_NAME}}"
+min_instances = {{MIN_INSTANCES}}
+max_instances = {{MAX_INSTANCES}}
+memory_limit  = "{{MEMORY_LIMIT}}"
+cpu_limit     = "{{CPU_LIMIT}}"
+
