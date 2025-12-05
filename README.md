@@ -370,15 +370,14 @@ The project includes automated deployment infrastructure with **semantic version
 - **GitHub Actions** handles CI/CD pipeline
 
 **Quick Deploy**:
-1. Configure GitHub Secrets (see [Terraform Deployment Guide](TERRAFORM_DEPLOYMENT.md))
+1. Configure GitHub Secrets (see [Deployment Guide](DEPLOYMENT.md))
 2. Commit changes using [Conventional Commits](https://www.conventionalcommits.org/) format
 3. Push to main branch
 4. Automatic versioning and deployment! 🎉
 
-For detailed semantic versioning instructions, see:
+For detailed deployment instructions, see:
+- **[Deployment Guide](DEPLOYMENT.md)** - Complete deployment guide with quickstart, Terraform setup, and alternative options
 - **[Versioning Guide](VERSIONING.md)** - How to use semantic versioning with conventional commits
-- **[Terraform Deployment Guide](TERRAFORM_DEPLOYMENT.md)** - Complete setup walkthrough
-- **[Deployment Guide](DEPLOYMENT.md)** - Manual deployment options
 
 ### Manual Deployment
 

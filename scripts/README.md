@@ -172,5 +172,5 @@ After setting up the service account:
 3. Push to main branch to trigger deployment
 4. Monitor the GitHub Actions workflow
 
-See [TERRAFORM_DEPLOYMENT.md](../TERRAFORM_DEPLOYMENT.md) for complete deployment instructions.
+See [DEPLOYMENT.md](../DEPLOYMENT.md) for complete deployment instructions.
 
