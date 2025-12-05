@@ -14,9 +14,9 @@ permissions:
   id-token: write
 
 env:
-  GCP_REGION: us-central1
+  GCP_REGION: us-east1
   SERVICE_NAME: blumelein-server
-  DOCKER_REPOSITORY: blumelein-docker
+  DOCKER_REPOSITORY: gar-usea1-docker
 
 jobs:
   version_bump:
@@ -179,7 +179,7 @@ jobs:
           terraform import google_firestore_database.main projects/${{ secrets.GCP_PROJECT_ID }}/databases/\(default\) || true
           
           # Import Artifact Registry repository if it exists
-          terraform import google_artifact_registry_repository.docker projects/${{ secrets.GCP_PROJECT_ID }}/locations/${{ env.GCP_REGION }}/repositories/blumelein-docker || true
+          terraform import google_artifact_registry_repository.docker projects/${{ secrets.GCP_PROJECT_ID }}/locations/${{ env.GCP_REGION }}/repositories/${{ env.DOCKER_REPOSITORY }} || true
           
           # Import Cloud Run service if it exists
           terraform import google_cloud_run_service.server locations/${{ env.GCP_REGION }}/namespaces/${{ secrets.GCP_PROJECT_ID }}/services/${{ env.SERVICE_NAME }} || true
