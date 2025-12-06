@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.0.8 (2025-12-06)
+
+### Bug Fixes
+
+- Made project ID an env var instead of env secret
+  ([`645996a`](https://github.com/jyjulianwong/Blumelein-Server/commit/645996a7071ba66b93d88fa2f9ac1b2a34fa3f85))
+
+
 ## v1.0.7 (2025-12-06)
 
 ### Bug Fixes
