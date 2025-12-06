@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.0.10 (2025-12-06)
+
+### Bug Fixes
+
+- Updated revision suffix logic in Terraform
+  ([`f7567d8`](https://github.com/jyjulianwong/Blumelein-Server/commit/f7567d85edc68a4f65bd09b50be5978cc90bf3cd))
+
+
 ## v1.0.9 (2025-12-06)
 
 ### Bug Fixes
