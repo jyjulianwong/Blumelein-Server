@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.0.9 (2025-12-06)
+
+### Bug Fixes
+
+- Undid changes which made TERRAFORM_STATE_BUCKET an environment variable
+  ([`eed27fc`](https://github.com/jyjulianwong/Blumelein-Server/commit/eed27fc447c5e4abc0082614796ca5a704978aef))
+
+
 ## v1.0.8 (2025-12-06)
 
 ### Bug Fixes
