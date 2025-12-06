@@ -178,18 +178,8 @@ jobs:
           # Import Firestore database if it exists
           terraform import google_firestore_database.main projects/${{ secrets.GCP_PROJECT_ID }}/databases/\(default\) || true
           
-          # Import Artifact Registry repository if it exists
-          terraform import google_artifact_registry_repository.docker projects/${{ secrets.GCP_PROJECT_ID }}/locations/${{ env.GCP_REGION }}/repositories/${{ env.DOCKER_REPOSITORY }} || true
-          
           # Import Cloud Run service if it exists
           terraform import google_cloud_run_service.server locations/${{ env.GCP_REGION }}/namespaces/${{ secrets.GCP_PROJECT_ID }}/services/${{ env.SERVICE_NAME }} || true
-          
-          # Import service account if it exists
-          terraform import google_service_account.cloudrun projects/${{ secrets.GCP_PROJECT_ID }}/serviceAccounts/${{ env.SERVICE_NAME }}-sa@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com || true
-          
-          # Import IAM bindings if they exist
-          terraform import google_project_iam_member.cloudrun_firestore "${{ secrets.GCP_PROJECT_ID }} roles/datastore.user serviceAccount:${{ env.SERVICE_NAME }}-sa@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com" || true
-          terraform import google_project_iam_member.cloudrun_logging "${{ secrets.GCP_PROJECT_ID }} roles/logging.logWriter serviceAccount:${{ env.SERVICE_NAME }}-sa@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com" || true
           
           # Import Cloud Run IAM binding for public access
           terraform import google_cloud_run_service_iam_member.server_public "v1/projects/${{ secrets.GCP_PROJECT_ID }}/locations/${{ env.GCP_REGION }}/services/${{ env.SERVICE_NAME }} roles/run.invoker allUsers" || true

@@ -31,12 +31,15 @@ gcloud services enable run.googleapis.com \
 
 # Create Firestore database
 gcloud firestore databases create \
-  --location=us-central1 \
+  --location=us-east1 \
   --type=firestore-native
 
-# Create Terraform state bucket
-gsutil mb -l us-central1 gs://${PROJECT_ID}-terraform-state
+# Create Terraform state bucket (REQUIRED - deployment will fail without this!)
+gsutil mb -l us-east1 gs://${PROJECT_ID}-terraform-state
 gsutil versioning set on gs://${PROJECT_ID}-terraform-state
+
+# Verify the bucket was created
+gsutil ls -L gs://${PROJECT_ID}-terraform-state
 ```
 
 ### Step 2: Create Service Account (2 minutes)
@@ -44,14 +47,14 @@ gsutil versioning set on gs://${PROJECT_ID}-terraform-state
 Use our automated scripts (recommended):
 
 ```bash
-# Run the setup script
-./scripts/setup-service-account.sh $PROJECT_ID us-central1
+# Run the setup script (use us-east1 to match your deployment region)
+./scripts/setup-service-account.sh $PROJECT_ID us-east1
 
 # Create the key file
-./scripts/create-service-account-key.sh $PROJECT_ID us-central1
+./scripts/create-service-account-key.sh $PROJECT_ID us-east1
 
 # Copy the key content (you'll need it in the next step)
-cat svc-usce1-tf-key.json
+cat svc-usea1-tf-key.json
 ```
 
 Or manually create the service account:
@@ -86,7 +89,7 @@ Go to your GitHub repository → **Settings** → **Secrets and variables** → 
 |------------|-------|-------------|
 | `GCP_CREDENTIALS` | Contents of key JSON file | Service account key |
 | `GCP_PROJECT_ID` | Your project ID | Google Cloud project |
-| `TERRAFORM_STATE_BUCKET` | `your-project-id-terraform-state` | Terraform state bucket |
+| `TERRAFORM_STATE_BUCKET` | `your-project-id-terraform-state` | Terraform state bucket (**must be created first!**) |
 | `STRIPE_API_KEY` | Your Stripe secret key | Stripe API secret |
 | `STRIPE_PUBLISHABLE_KEY` | Your Stripe publishable key | Stripe public key |
 | `STRIPE_WEBHOOK_SECRET` | Your webhook secret | Stripe webhook secret |
@@ -98,7 +101,7 @@ Go to your GitHub repository → **Settings** → **Secrets and variables** → 
 |--------------|-------|-------------|
 | `ENVIRONMENT` | `production` | Environment name |
 | `ALLOWED_ORIGINS` | `https://yourdomain.com` | CORS origins |
-| `FIRESTORE_LOCATION` | `us-central1` | Firestore location |
+| `FIRESTORE_LOCATION` | `us-east1` | Firestore location |
 | `MIN_INSTANCES` | `0` | Min Cloud Run instances |
 | `MAX_INSTANCES` | `10` | Max Cloud Run instances |
 | `MEMORY_LIMIT` | `512Mi` | Memory limit |
@@ -120,11 +123,11 @@ Watch the GitHub Actions tab as your application builds and deploys automaticall
 ```bash
 # Get the service URL
 gcloud run services describe blumelein-server \
-  --region=us-central1 \
+  --region=us-east1 \
   --format='value(status.url)'
 
 # Test the health endpoint
-curl $(gcloud run services describe blumelein-server --region=us-central1 --format='value(status.url)')/health
+curl $(gcloud run services describe blumelein-server --region=us-east1 --format='value(status.url)')/health
 ```
 
 ### Success! 🎉
@@ -186,22 +189,29 @@ gcloud services enable cloudbuild.googleapis.com
 
 # Create Firestore database (if not already created)
 gcloud firestore databases create \
-  --location=us-central1 \
+  --location=us-east1 \
   --type=firestore-native
 ```
 
 #### Step 2: Create Terraform State Bucket
 
-Terraform needs a GCS bucket to store its state:
+**⚠️ CRITICAL**: Terraform needs a GCS bucket to store its state. **Deployment will fail if this bucket doesn't exist!**
 
 ```bash
-# Create bucket for Terraform state
+# Create bucket for Terraform state (MUST match your region!)
 export TERRAFORM_BUCKET="${PROJECT_ID}-terraform-state"
-gsutil mb -l us-central1 gs://${TERRAFORM_BUCKET}
+gsutil mb -l us-east1 gs://${TERRAFORM_BUCKET}
 
-# Enable versioning for safety
+# Enable versioning for safety (protects against accidental state deletion)
 gsutil versioning set on gs://${TERRAFORM_BUCKET}
+
+# Verify the bucket was created successfully
+gsutil ls -L gs://${TERRAFORM_BUCKET}
 ```
+
+**Common Error**: If you see `Error: Failed to get existing workspaces: querying Cloud Storage failed: storage: bucket doesn't exist`, it means this step was skipped. Create the bucket using the commands above.
+
+**Note**: The bucket name you create here MUST match the value you set in the GitHub secret `TERRAFORM_STATE_BUCKET` (typically `your-project-id-terraform-state`).
 
 #### Step 3: Create Service Account for GitHub Actions
 
@@ -211,17 +221,17 @@ We provide automated scripts to create a properly configured service account fol
 **Automated Setup (Recommended):**
 
 ```bash
-# Run the setup script
-./scripts/setup-service-account.sh $PROJECT_ID us-central1
+# Run the setup script (use us-east1 to match your deployment region)
+./scripts/setup-service-account.sh $PROJECT_ID us-east1
 
 # Create the key file
-./scripts/create-service-account-key.sh $PROJECT_ID us-central1
+./scripts/create-service-account-key.sh $PROJECT_ID us-east1
 
 # Verify permissions (optional)
-./scripts/verify-service-account.sh $PROJECT_ID us-central1
+./scripts/verify-service-account.sh $PROJECT_ID us-east1
 ```
 
-This creates a service account with the naming pattern `svc-usce1-tf@{project}.iam.gserviceaccount.com` and grants all necessary permissions.
+This creates a service account with the naming pattern `svc-usea1-tf@{project}.iam.gserviceaccount.com` and grants all necessary permissions.
 
 **Manual Setup (Alternative):**
 
@@ -229,7 +239,7 @@ If you prefer manual setup:
 
 ```bash
 # Create service account
-REGION_ABBREV="usce1"  # us-central1 abbreviated
+REGION_ABBREV="usea1"  # us-east1 abbreviated
 SERVICE_ACCOUNT_NAME="svc-${REGION_ABBREV}-tf"
 
 gcloud iam service-accounts create $SERVICE_ACCOUNT_NAME \
@@ -337,10 +347,10 @@ cd terraform
 terraform import google_firestore_database.main projects/YOUR_PROJECT_ID/databases/\(default\)
 
 # Import Cloud Run service (if exists)
-terraform import google_cloud_run_service.server locations/us-central1/namespaces/YOUR_PROJECT_ID/services/blumelein-server
+terraform import google_cloud_run_service.server locations/us-east1/namespaces/YOUR_PROJECT_ID/services/blumelein-server
 
 # Import Artifact Registry (if exists)
-terraform import google_artifact_registry_repository.docker projects/YOUR_PROJECT_ID/locations/us-central1/repositories/blumelein-docker
+terraform import google_artifact_registry_repository.docker projects/YOUR_PROJECT_ID/locations/us-east1/repositories/blumelein-docker
 ```
 
 #### View Current State
@@ -381,12 +391,12 @@ terraform destroy
 ```bash
 # View Cloud Run logs
 gcloud run services logs read blumelein-server \
-  --region=us-central1 \
+  --region=us-east1 \
   --limit=50
 
 # Follow logs in real-time
 gcloud run services logs tail blumelein-server \
-  --region=us-central1
+  --region=us-east1
 
 # View logs with Cloud Logging
 gcloud logging read "resource.type=cloud_run_revision AND resource.labels.service_name=blumelein-server" --limit 50
@@ -397,15 +407,15 @@ gcloud logging read "resource.type=cloud_run_revision AND resource.labels.servic
 ```bash
 # Get service details
 gcloud run services describe blumelein-server \
-  --region=us-central1
+  --region=us-east1
 
 # Get service URL
 gcloud run services describe blumelein-server \
-  --region=us-central1 \
+  --region=us-east1 \
   --format='value(status.url)'
 
 # Test the service
-SERVICE_URL=$(gcloud run services describe blumelein-server --region=us-central1 --format='value(status.url)')
+SERVICE_URL=$(gcloud run services describe blumelein-server --region=us-east1 --format='value(status.url)')
 curl $SERVICE_URL/health
 ```
 
@@ -420,6 +430,34 @@ curl $SERVICE_URL/health
 ---
 
 ## Troubleshooting
+
+### Terraform State Bucket Errors
+
+**Problem**: `Error: Failed to get existing workspaces: querying Cloud Storage failed: storage: bucket doesn't exist`
+
+**Cause**: The Terraform state bucket was not created before running the deployment workflow.
+
+**Solution**: 
+1. Create the Terraform state bucket manually:
+   ```bash
+   export PROJECT_ID="your-project-id"
+   gcloud config set project $PROJECT_ID
+   
+   # Create the bucket (use us-east1 to match your deployment region)
+   gsutil mb -l us-east1 gs://${PROJECT_ID}-terraform-state
+   
+   # Enable versioning for state file protection
+   gsutil versioning set on gs://${PROJECT_ID}-terraform-state
+   
+   # Verify it was created
+   gsutil ls -L gs://${PROJECT_ID}-terraform-state
+   ```
+
+2. Verify your GitHub secret `TERRAFORM_STATE_BUCKET` matches the bucket name (e.g., `your-project-id-terraform-state`)
+
+3. Re-run your GitHub Actions workflow
+
+**Prevention**: Always complete Step 1 and Step 2 of the Quick Start before pushing code to trigger deployment.
 
 ### Build Failures
 
@@ -507,7 +545,7 @@ Update GitHub Variables:
 
 ```bash
 gcloud run services update blumelein-server \
-  --region us-central1 \
+  --region us-east1 \
   --min-instances 1 \
   --max-instances 100 \
   --concurrency 80
@@ -557,7 +595,7 @@ Cloud Run automatically provides HTTPS. For custom domains:
 gcloud run domain-mappings create \
   --service blumelein-server \
   --domain api.yourdomain.com \
-  --region us-central1
+  --region us-east1
 ```
 
 ### Configure CORS Properly
@@ -662,7 +700,7 @@ For advanced users who need fine-grained control.
 gcloud container clusters create blumelein-cluster \
   --num-nodes=2 \
   --machine-type=e2-small \
-  --region=us-central1
+  --region=us-east1
 ```
 
 #### Step 2: Build and Push Image

@@ -9,21 +9,6 @@ resource "google_project_service" "firestore_api" {
   disable_on_destroy = false
 }
 
-resource "google_project_service" "artifactregistry_api" {
-  service            = "artifactregistry.googleapis.com"
-  disable_on_destroy = false
-}
-
-# Artifact Registry for Docker images
-resource "google_artifact_registry_repository" "docker" {
-  location      = var.gcp_region
-  repository_id = "blumelein-docker"
-  description   = "Docker repository for Blumelein Server"
-  format        = "DOCKER"
-
-  depends_on = [google_project_service.artifactregistry_api]
-}
-
 # Cloud Run Service
 resource "google_cloud_run_service" "server" {
   name     = var.service_name
@@ -39,7 +24,7 @@ resource "google_cloud_run_service" "server" {
     }
 
     spec {
-      service_account_name = google_service_account.cloudrun.email
+      service_account_name = "${var.service_name}-sa@${var.gcp_project_id}.iam.gserviceaccount.com"
       
       containers {
         image = var.server_image_tag
@@ -130,26 +115,12 @@ resource "google_cloud_run_service_iam_member" "server_public" {
   member   = "allUsers"
 }
 
-# Service Account for Cloud Run
-resource "google_service_account" "cloudrun" {
-  account_id   = "${var.service_name}-sa"
-  display_name = "Service Account for ${var.service_name}"
-  description  = "Used by Cloud Run service to access Google Cloud resources"
-}
-
-# Grant Firestore access to service account
-resource "google_project_iam_member" "cloudrun_firestore" {
-  project = var.gcp_project_id
-  role    = "roles/datastore.user"
-  member  = "serviceAccount:${google_service_account.cloudrun.email}"
-}
-
-# Grant logging access to service account
-resource "google_project_iam_member" "cloudrun_logging" {
-  project = var.gcp_project_id
-  role    = "roles/logging.logWriter"
-  member  = "serviceAccount:${google_service_account.cloudrun.email}"
-}
+# Service account is expected to be pre-created manually
+# Service account email format: ${var.service_name}-sa@${var.gcp_project_id}.iam.gserviceaccount.com
+# 
+# Required IAM roles for the service account:
+# - roles/datastore.user (Firestore access)
+# - roles/logging.logWriter (Cloud Logging access)
 
 # Outputs
 output "service_url" {
@@ -159,11 +130,6 @@ output "service_url" {
 
 output "service_account_email" {
   description = "Email of the Cloud Run service account"
-  value       = google_service_account.cloudrun.email
-}
-
-output "artifact_registry_url" {
-  description = "URL of the Artifact Registry repository"
-  value       = "${var.gcp_region}-docker.pkg.dev/${var.gcp_project_id}/${google_artifact_registry_repository.docker.repository_id}"
+  value       = "${var.service_name}-sa@${var.gcp_project_id}.iam.gserviceaccount.com"
 }
 
