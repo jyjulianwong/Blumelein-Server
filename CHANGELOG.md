@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.0.5 (2025-12-06)
+
+### Bug Fixes
+
+- Updated missing server-image-tag variable in Terraform step in GitHub Actions
+  ([`4f485c7`](https://github.com/jyjulianwong/Blumelein-Server/commit/4f485c7c398af29456abaee06569d88d9d5d24af))
+
+
 ## v1.0.4 (2025-12-06)
 
 ### Bug Fixes
