@@ -20,12 +20,8 @@ resource "google_cloud_run_service" "server" {
         "autoscaling.knative.dev/minScale" = var.min_instances
         "autoscaling.knative.dev/maxScale" = var.max_instances
         "run.googleapis.com/client-name"   = "terraform"
+        "custom/revision-suffix"           = substr(md5(timestamp()), 0, 4)
       }
-      
-      # Set revision name with optional suffix
-      # Format: {service-name}-{suffix} (e.g., blumelein-server-v1-2-0)
-      # If no suffix provided, Cloud Run auto-generates the revision name
-      name = var.revision_suffix != "" ? "${var.service_name}-${var.revision_suffix}" : null
     }
 
     spec {
