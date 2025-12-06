@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.0.12 (2025-12-06)
+
+### Bug Fixes
+
+- Added pre-commit steps
+  ([`cbe74c1`](https://github.com/jyjulianwong/Blumelein-Server/commit/cbe74c1b228206d75e5ef9a715374cdbcedf0017))
+
+
 ## v1.0.11 (2025-12-06)
 
 ### Bug Fixes
