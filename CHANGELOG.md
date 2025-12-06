@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.0.11 (2025-12-06)
+
+### Bug Fixes
+
+- Added 'autogenerate_revision_name = true' to Terraform
+  ([`e9d89df`](https://github.com/jyjulianwong/Blumelein-Server/commit/e9d89df54784dbf863401461004b65455464fb4d))
+
+
 ## v1.0.10 (2025-12-06)
 
 ### Bug Fixes
