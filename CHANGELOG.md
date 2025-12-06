@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.0.4 (2025-12-06)
+
+### Bug Fixes
+
+- Fixed Terraform and manual setup conflict issues
+  ([`5b21db7`](https://github.com/jyjulianwong/Blumelein-Server/commit/5b21db77ccc15927ef1b90c66295f507be6f0889))
+
+
 ## v1.0.3 (2025-12-06)
 
 ### Bug Fixes
