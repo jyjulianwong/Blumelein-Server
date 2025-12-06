@@ -96,27 +96,31 @@ Go to your GitHub repository → **Settings** → **Secrets and variables** → 
 
 #### Add Secrets:
 
+**⚠️ Important**: Only add truly sensitive values as Secrets. Project IDs and bucket names should be Variables.
+
 | Secret Name | Value | Description |
 |------------|-------|-------------|
 | `GCP_CREDENTIALS` | Contents of key JSON file | Service account key |
-| `GCP_PROJECT_ID` | Your project ID | Google Cloud project |
-| `TERRAFORM_STATE_BUCKET` | `your-project-id-terraform-state` | Terraform state bucket (**must be created first!**) |
 | `STRIPE_API_KEY` | Your Stripe secret key | Stripe API secret |
 | `STRIPE_PUBLISHABLE_KEY` | Your Stripe publishable key | Stripe public key |
 | `STRIPE_WEBHOOK_SECRET` | Your webhook secret | Stripe webhook secret |
 | `ADMIN_API_KEY` | `openssl rand -base64 32` | Admin API key |
 
-#### Add Variables (optional):
+#### Add Variables (required):
+
+**Note**: These values are NOT secrets and must be added as **Variables** (not Secrets) to avoid GitHub Actions output redaction.
 
 | Variable Name | Value | Description |
 |--------------|-------|-------------|
-| `ENVIRONMENT` | `production` | Environment name |
-| `ALLOWED_ORIGINS` | `https://yourdomain.com` | CORS origins |
-| `FIRESTORE_LOCATION` | `us-east1` | Firestore location |
-| `MIN_INSTANCES` | `0` | Min Cloud Run instances |
-| `MAX_INSTANCES` | `10` | Max Cloud Run instances |
-| `MEMORY_LIMIT` | `512Mi` | Memory limit |
-| `CPU_LIMIT` | `1000m` | CPU limit (1 vCPU) |
+| `GCP_PROJECT_ID` | `your-project-id` | Google Cloud project ID (**required**) |
+| `TERRAFORM_STATE_BUCKET` | `your-project-id-terraform-state` | Terraform state bucket (**required**, must be created first!) |
+| `ENVIRONMENT` | `production` | Environment name (optional) |
+| `ALLOWED_ORIGINS` | `https://yourdomain.com` | CORS origins (optional) |
+| `FIRESTORE_LOCATION` | `us-east1` | Firestore location (optional) |
+| `MIN_INSTANCES` | `0` | Min Cloud Run instances (optional) |
+| `MAX_INSTANCES` | `10` | Max Cloud Run instances (optional) |
+| `MEMORY_LIMIT` | `512Mi` | Memory limit (optional) |
+| `CPU_LIMIT` | `1000m` | CPU limit (1 vCPU, optional) |
 
 ### Step 4: Deploy (1 minute)
 
@@ -629,10 +633,24 @@ If `Released: false`, semantic-release didn't detect a version change. This can 
 
 Look for the "📦 Export image tag" step. You should see:
 ```
-Exporting image_tag: us-east1-docker.pkg.dev/PROJECT/REPO/SERVICE:1.0.5
+DEBUG - GCP_REGION: us-east1
+DEBUG - GCP_PROJECT_ID: your-project-id
+DEBUG - DOCKER_REPOSITORY: gar-usea1-docker
+DEBUG - SERVICE_NAME: blumelein-server
+DEBUG - VERSION: 1.0.5
+DEBUG - IMAGE_TAG from env: us-east1-docker.pkg.dev/...
+DEBUG - Final IMAGE_TAG: us-east1-docker.pkg.dev/PROJECT/REPO/SERVICE:1.0.5
 ```
 
-If this is empty or missing, the image tag export failed.
+**Common Issue**: If `DEBUG - Image tag from build-and-push` shows as empty in the terraform-deploy step, this is caused by **GitHub Actions secret redaction**. GitHub automatically censors any output containing secret values.
+
+**Solution**: Ensure `GCP_PROJECT_ID` and `TERRAFORM_STATE_BUCKET` are configured as **Variables** (not Secrets) in GitHub:
+1. Go to GitHub → Settings → Secrets and variables → Actions
+2. Click the **Variables** tab
+3. Add `GCP_PROJECT_ID` and `TERRAFORM_STATE_BUCKET` as variables
+4. Remove them from the Secrets tab if they exist there
+
+**Why**: Project IDs and bucket names are not sensitive information. When stored as secrets, GitHub redacts them from all outputs, causing the image tag to become empty.
 
 **Step 4: Check terraform-deploy job**
 

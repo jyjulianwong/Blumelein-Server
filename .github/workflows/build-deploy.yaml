@@ -81,7 +81,7 @@ jobs:
       - name: ⚙️ Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
         with:
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          project_id: ${{ vars.GCP_PROJECT_ID }}
 
       - name: 🔐 Configure Docker authentication
         run: |
@@ -89,8 +89,8 @@ jobs:
 
       - name: 🏗️ Build Docker image
         run: |
-          IMAGE_TAG="${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.DOCKER_REPOSITORY }}/${{ env.SERVICE_NAME }}:${{ needs.version_bump.outputs.version }}"
-          LATEST_TAG="${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.DOCKER_REPOSITORY }}/${{ env.SERVICE_NAME }}:latest"
+          IMAGE_TAG="${{ env.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ env.DOCKER_REPOSITORY }}/${{ env.SERVICE_NAME }}:${{ needs.version_bump.outputs.version }}"
+          LATEST_TAG="${{ env.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ env.DOCKER_REPOSITORY }}/${{ env.SERVICE_NAME }}:latest"
           
           echo "Building image: $IMAGE_TAG"
           docker build \
@@ -112,7 +112,7 @@ jobs:
         run: |
           # Debug: Show the components
           echo "DEBUG - GCP_REGION: ${{ env.GCP_REGION }}"
-          echo "DEBUG - GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}"
+          echo "DEBUG - GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}"
           echo "DEBUG - DOCKER_REPOSITORY: ${{ env.DOCKER_REPOSITORY }}"
           echo "DEBUG - SERVICE_NAME: ${{ env.SERVICE_NAME }}"
           echo "DEBUG - VERSION: ${{ needs.version_bump.outputs.version }}"
@@ -123,7 +123,7 @@ jobs:
           # If IMAGE_TAG is not set from env, reconstruct it
           if [ -z "$IMAGE_TAG" ]; then
             echo "WARNING - IMAGE_TAG not in environment, reconstructing..."
-            IMAGE_TAG="${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.DOCKER_REPOSITORY }}/${{ env.SERVICE_NAME }}:${{ needs.version_bump.outputs.version }}"
+            IMAGE_TAG="${{ env.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ env.DOCKER_REPOSITORY }}/${{ env.SERVICE_NAME }}:${{ needs.version_bump.outputs.version }}"
           fi
           
           echo "DEBUG - Final IMAGE_TAG: $IMAGE_TAG"
@@ -154,7 +154,7 @@ jobs:
       - name: ⚙️ Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
         with:
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          project_id: ${{ vars.GCP_PROJECT_ID }}
 
       - name: ⚙️ Set up Terraform
         uses: hashicorp/setup-terraform@v3
@@ -169,7 +169,7 @@ jobs:
           
           # Convert region to abbreviation for service account naming
           REGION_ABBREV=$(echo "${{ env.GCP_REGION }}" | sed -E 's/^([a-z]{2})[a-z]*-([a-z]{2})[a-z]*([0-9]+)$/\1\2\3/')
-          SERVICE_ACCOUNT_EMAIL="svc-${REGION_ABBREV}-tf@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
+          SERVICE_ACCOUNT_EMAIL="svc-${REGION_ABBREV}-tf@${{ vars.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
           
           # Generate revision suffix from semantic version (replace dots with dashes for valid revision name)
           # Example: 1.2.3 becomes v1-2-3
@@ -177,7 +177,7 @@ jobs:
           
           echo "DEBUG - Generated revision suffix: $REVISION_SUFFIX"
           
-          sed -e "s|{{GCP_PROJECT_ID}}|${{ secrets.GCP_PROJECT_ID }}|g" \
+          sed -e "s|{{GCP_PROJECT_ID}}|${{ vars.GCP_PROJECT_ID }}|g" \
               -e "s|{{GCP_REGION}}|${{ env.GCP_REGION }}|g" \
               -e "s|{{FIRESTORE_LOCATION}}|${{ vars.FIRESTORE_LOCATION || env.GCP_REGION }}|g" \
               -e "s|{{SERVER_IMAGE_TAG}}|${{ needs.build-and-push.outputs.image_tag }}|g" \
@@ -207,7 +207,7 @@ jobs:
         run: |
           rm -f .terraform.lock.hcl
           terraform init \
-            -backend-config="bucket=${{ secrets.TERRAFORM_STATE_BUCKET }}" \
+            -backend-config="bucket=${{ vars.TERRAFORM_STATE_BUCKET }}" \
             -backend-config="prefix=terraform/state" \
             -upgrade
 
