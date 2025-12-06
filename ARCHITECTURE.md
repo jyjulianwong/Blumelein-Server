@@ -170,6 +170,8 @@ Each document represents a single order:
     }
   ],
   buyer_full_name: "Jane Smith",
+  buyer_email: "jane.smith@example.com",
+  buyer_phone: "+1-555-0123",
   delivery_address: "123 Main St, New York, NY 10001",
   payment_status: "Incomplete" | "Completed",
   order_status: "Not Started" | "In Progress" | "Completed",

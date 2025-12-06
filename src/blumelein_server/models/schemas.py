@@ -80,6 +80,18 @@ class OrderCreate(BaseModel):
         max_length=100,
         description="Full name of the buyer"
     )
+    buyer_email: str = Field(
+        ...,
+        min_length=3,
+        max_length=254,
+        description="Email address of the buyer"
+    )
+    buyer_phone: str = Field(
+        ...,
+        min_length=1,
+        max_length=20,
+        description="Phone number of the buyer"
+    )
     delivery_address: str = Field(
         ...,
         min_length=1,
@@ -98,6 +110,8 @@ class OrderCreate(BaseModel):
                     }
                 ],
                 "buyer_full_name": "Jane Smith",
+                "buyer_email": "jane.smith@example.com",
+                "buyer_phone": "+1-555-0123",
                 "delivery_address": "123 Main St, New York, NY 10001"
             }
         }
@@ -109,6 +123,8 @@ class Order(BaseModel):
     order_id: UUID = Field(default_factory=uuid4, description="Unique order identifier")
     items: list[Item] = Field(..., description="List of items in the order")
     buyer_full_name: str = Field(..., description="Full name of the buyer")
+    buyer_email: str = Field(..., description="Email address of the buyer")
+    buyer_phone: str = Field(..., description="Phone number of the buyer")
     delivery_address: str = Field(..., description="Delivery address for the order")
     payment_status: PaymentStatus = Field(
         default=PaymentStatus.INCOMPLETE,
@@ -129,6 +145,8 @@ class OrderResponse(BaseModel):
     order_id: UUID
     items: list[Item]
     buyer_full_name: str
+    buyer_email: str
+    buyer_phone: str
     delivery_address: str
     payment_status: PaymentStatus
     order_status: OrderStatus

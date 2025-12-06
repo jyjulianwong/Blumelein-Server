@@ -66,6 +66,8 @@ class FirestoreAdapter(DatabaseAdapter):
                 for item in order.items
             ],
             "buyer_full_name": order.buyer_full_name,
+            "buyer_email": order.buyer_email,
+            "buyer_phone": order.buyer_phone,
             "delivery_address": order.delivery_address,
             "payment_status": order.payment_status.value,
             "order_status": order.order_status.value,
@@ -98,6 +100,8 @@ class FirestoreAdapter(DatabaseAdapter):
             order_id=UUID(data["order_id"]),
             items=items,
             buyer_full_name=data["buyer_full_name"],
+            buyer_email=data["buyer_email"],
+            buyer_phone=data["buyer_phone"],
             delivery_address=data["delivery_address"],
             payment_status=PaymentStatus(data["payment_status"]),
             order_status=OrderStatus(data["order_status"]),

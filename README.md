@@ -1,4 +1,4 @@
-# Blumelein Server API
+# Blumelein Server
 
 REST API for a flower shop web application built with FastAPI. This API handles order submissions, payment processing via Stripe, and administrative order management.
 
@@ -223,6 +223,8 @@ Content-Type: application/json
     }
   ],
   "buyer_full_name": "Jane Smith",
+  "buyer_email": "jane.smith@example.com",
+  "buyer_phone": "+1-555-0123",
   "delivery_address": "123 Main St, New York, NY 10001"
 }
 ```
@@ -456,10 +458,6 @@ uv run ruff format src/
 ```bash
 uv run mypy src/
 ```
-
-## 📄 License
-
-MIT
 
 ## 🤝 Contributing
 

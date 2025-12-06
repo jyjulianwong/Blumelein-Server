@@ -43,6 +43,8 @@ async def submit_order(order_data: OrderCreate) -> OrderResponse:
     order = Order(
         items=items,
         buyer_full_name=order_data.buyer_full_name,
+        buyer_email=order_data.buyer_email,
+        buyer_phone=order_data.buyer_phone,
         delivery_address=order_data.delivery_address,
     )
     
@@ -65,7 +67,7 @@ async def get_order_by_id(order_id: UUID) -> OrderResponse:
     
     Returns order details including:
     - All items in the order
-    - Buyer information and delivery address
+    - Buyer information (name, email, phone) and delivery address
     - Payment status
     - Order processing status
     - Creation and update timestamps

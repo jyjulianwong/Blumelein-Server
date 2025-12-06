@@ -29,6 +29,8 @@ resource "google_firestore_database" "main" {
 #     created_at: timestamp
 #   },
 #   buyer_full_name: string,
+#   buyer_email: string,
+#   buyer_phone: string,
 #   delivery_address: string,
 #   payment_status: string ("Incomplete", "Completed"),
 #   order_status: string ("Not Started", "In Progress", "Completed"),

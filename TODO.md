@@ -1,2 +1,0 @@
-- Check naming conventions
-- firestore.rules

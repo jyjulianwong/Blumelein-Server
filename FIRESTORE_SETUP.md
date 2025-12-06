@@ -180,6 +180,8 @@ curl -X POST http://localhost:8000/orders \
       }
     ],
     "buyer_full_name": "Test User",
+    "buyer_email": "test@example.com",
+    "buyer_phone": "+1-555-0100",
     "delivery_address": "123 Test St, Test City"
   }'
 ```
@@ -211,6 +213,8 @@ orders/ (collection)
       │       }
       │     ]
       ├── buyer_full_name: string
+      ├── buyer_email: string
+      ├── buyer_phone: string
       ├── delivery_address: string
       ├── payment_status: string
       ├── order_status: string

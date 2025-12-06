@@ -96,11 +96,12 @@ Go to your GitHub repository → **Settings** → **Secrets and variables** → 
 
 #### Add Secrets:
 
-**⚠️ Important**: Only add truly sensitive values as Secrets. Project IDs and bucket names should be Variables.
+**⚠️ Important**: Only add truly sensitive values as Secrets. Project IDs should be Variables.
 
 | Secret Name | Value | Description |
 |------------|-------|-------------|
 | `GCP_CREDENTIALS` | Contents of key JSON file | Service account key |
+| `TERRAFORM_STATE_BUCKET` | `your-project-id-terraform-state` | Terraform state bucket (**required**, must be created first!) |
 | `STRIPE_API_KEY` | Your Stripe secret key | Stripe API secret |
 | `STRIPE_PUBLISHABLE_KEY` | Your Stripe publishable key | Stripe public key |
 | `STRIPE_WEBHOOK_SECRET` | Your webhook secret | Stripe webhook secret |
@@ -113,7 +114,6 @@ Go to your GitHub repository → **Settings** → **Secrets and variables** → 
 | Variable Name | Value | Description |
 |--------------|-------|-------------|
 | `GCP_PROJECT_ID` | `your-project-id` | Google Cloud project ID (**required**) |
-| `TERRAFORM_STATE_BUCKET` | `your-project-id-terraform-state` | Terraform state bucket (**required**, must be created first!) |
 | `ENVIRONMENT` | `production` | Environment name (optional) |
 | `ALLOWED_ORIGINS` | `https://yourdomain.com` | CORS origins (optional) |
 | `FIRESTORE_LOCATION` | `us-east1` | Firestore location (optional) |
@@ -644,13 +644,13 @@ DEBUG - Final IMAGE_TAG: us-east1-docker.pkg.dev/PROJECT/REPO/SERVICE:1.0.5
 
 **Common Issue**: If `DEBUG - Image tag from build-and-push` shows as empty in the terraform-deploy step, this is caused by **GitHub Actions secret redaction**. GitHub automatically censors any output containing secret values.
 
-**Solution**: Ensure `GCP_PROJECT_ID` and `TERRAFORM_STATE_BUCKET` are configured as **Variables** (not Secrets) in GitHub:
+**Solution**: Ensure `GCP_PROJECT_ID` is configured as a **Variable** (not Secret) in GitHub:
 1. Go to GitHub → Settings → Secrets and variables → Actions
 2. Click the **Variables** tab
-3. Add `GCP_PROJECT_ID` and `TERRAFORM_STATE_BUCKET` as variables
-4. Remove them from the Secrets tab if they exist there
+3. Add `GCP_PROJECT_ID` as a variable
+4. Remove it from the Secrets tab if it exists there
 
-**Why**: Project IDs and bucket names are not sensitive information. When stored as secrets, GitHub redacts them from all outputs, causing the image tag to become empty.
+**Why**: Project IDs are not sensitive information. When stored as secrets, GitHub redacts them from all outputs, causing the image tag to become empty.
 
 **Step 4: Check terraform-deploy job**
 
