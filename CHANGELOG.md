@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.0.6 (2025-12-06)
+
+### Bug Fixes
+
+- Added debug logging to GitHub Actions workflow
+  ([`2a4ca83`](https://github.com/jyjulianwong/Blumelein-Server/commit/2a4ca838371d60d8a2a635d3932cb83ed704b8b7))
+
+
 ## v1.0.5 (2025-12-06)
 
 ### Bug Fixes

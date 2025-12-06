@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "blumelein-server"
-version = "1.0.5"
+version = "1.0.6"
 description = "REST API for a flower shop web application"
 readme = "README.md"
 requires-python = ">=3.11"
