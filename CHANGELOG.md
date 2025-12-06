@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.0.7 (2025-12-06)
+
+### Bug Fixes
+
+- Added failsafe to reconstruct Docker image tag if not available in GitHub Actions
+  ([`e6fdff7`](https://github.com/jyjulianwong/Blumelein-Server/commit/e6fdff71e21f661dece79b0b9ff2e454e4087441))
+
+
 ## v1.0.6 (2025-12-06)
 
 ### Bug Fixes
