@@ -1,23 +1,94 @@
-# Service Account Setup Scripts
+# Deployment Setup Scripts
 
-These scripts help you create and manage the Terraform service account following the naming convention: `svc-{region-abbrev}-tf@{project}.iam.gserviceaccount.com`
+These scripts help you set up all the necessary infrastructure for deploying Blumelein Server.
 
 ## Quick Start
 
 ```bash
-# 1. Create service account with all permissions
-./scripts/setup-service-account.sh YOUR_PROJECT_ID us-central1
+# 1. Setup Terraform service account (for GitHub Actions)
+./scripts/setup-service-account.sh YOUR_PROJECT_ID us-east1
 
-# 2. Create a JSON key
-./scripts/create-service-account-key.sh YOUR_PROJECT_ID us-central1
+# 2. Create a JSON key for GitHub Actions
+./scripts/create-service-account-key.sh YOUR_PROJECT_ID us-east1
 
-# 3. Verify permissions (optional)
-./scripts/verify-service-account.sh YOUR_PROJECT_ID us-central1
+# 3. Setup Artifact Registry prerequisite
+./scripts/setup-artifact-registry.sh YOUR_PROJECT_ID us-east1
+
+# 4. Verify everything (optional)
+./scripts/verify-service-account.sh YOUR_PROJECT_ID us-east1
+```
+
+## All-in-One Setup
+
+For a complete setup in one command:
+
+```bash
+export PROJECT_ID="your-project-id"
+export REGION="us-east1"
+
+# Setup Terraform SA
+./scripts/setup-service-account.sh $PROJECT_ID $REGION
+
+# Create key
+./scripts/create-service-account-key.sh $PROJECT_ID $REGION
+
+# Setup Artifact Registry
+./scripts/setup-artifact-registry.sh $PROJECT_ID $REGION
+
+# Add the key to GitHub Secrets, then deploy!
 ```
 
 ## Scripts
 
-### 1. `setup-service-account.sh`
+### Core Setup Scripts
+
+#### 1. `setup-service-account.sh`
+
+Creates the **Terraform/GitHub Actions service account** with all required permissions.
+
+**Usage:**
+```bash
+./scripts/setup-service-account.sh PROJECT_ID [REGION]
+```
+
+**Example:**
+```bash
+./scripts/setup-service-account.sh blumelein-prod us-east1
+```
+
+**Creates:** `svc-usea1-tf@blumelein-prod.iam.gserviceaccount.com`
+
+**Purpose:** This service account is used by:
+- GitHub Actions to deploy infrastructure via Terraform
+- Cloud Run service to access GCP resources (Firestore, logging)
+
+**Important:** Ensure this service account has the following roles:
+- `roles/datastore.user` - For Firestore access
+- `roles/logging.logWriter` - For Cloud Logging
+- All Terraform deployment roles (automatically granted by the script)
+
+#### 2. `setup-artifact-registry.sh`
+
+Sets up the **Artifact Registry** repository that Terraform expects to exist.
+
+**Usage:**
+```bash
+./scripts/setup-artifact-registry.sh PROJECT_ID [REGION]
+```
+
+**Example:**
+```bash
+./scripts/setup-artifact-registry.sh blumelein-prod us-east1
+```
+
+**Creates:**
+- Artifact Registry: `gar-usea1-docker`
+
+**Note:** Cloud Run will use the Terraform service account (svc-usea1-tf), so no separate service account is needed.
+
+### Helper Scripts
+
+#### 3. `create-service-account-key.sh`
 
 Creates a service account with the proper naming convention and grants all required IAM roles.
 
@@ -57,7 +128,7 @@ Creates a JSON key file for the service account.
 
 **Example:**
 ```bash
-./scripts/create-service-account-key.sh blumelein-prod us-central1
+./scripts/create-service-account-key.sh blumelein-prod us-east1
 ```
 
 **⚠️ Security Warning:**
@@ -65,7 +136,7 @@ Creates a JSON key file for the service account.
 - Delete the key file after adding to GitHub Secrets
 - Rotate keys every 90 days
 
-### 3. `verify-service-account.sh`
+#### 4. `verify-service-account.sh`
 
 Verifies that the service account has all required permissions.
 

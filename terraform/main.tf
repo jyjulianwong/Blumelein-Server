@@ -24,7 +24,9 @@ resource "google_cloud_run_service" "server" {
     }
 
     spec {
-      service_account_name = "${var.service_name}-sa@${var.gcp_project_id}.iam.gserviceaccount.com"
+      # Use the Terraform service account (svc-{region-abbrev}-tf)
+      # This is the same SA used by GitHub Actions for deployment
+      service_account_name = var.service_account_email
       
       containers {
         image = var.server_image_tag
@@ -115,12 +117,11 @@ resource "google_cloud_run_service_iam_member" "server_public" {
   member   = "allUsers"
 }
 
-# Service account is expected to be pre-created manually
-# Service account email format: ${var.service_name}-sa@${var.gcp_project_id}.iam.gserviceaccount.com
-# 
-# Required IAM roles for the service account:
+# Note: The service account used by Cloud Run (typically svc-{region-abbrev}-tf)
+# should have the following IAM roles already granted:
 # - roles/datastore.user (Firestore access)
 # - roles/logging.logWriter (Cloud Logging access)
+# These are typically set up via scripts/setup-service-account.sh
 
 # Outputs
 output "service_url" {
@@ -129,7 +130,7 @@ output "service_url" {
 }
 
 output "service_account_email" {
-  description = "Email of the Cloud Run service account"
-  value       = "${var.service_name}-sa@${var.gcp_project_id}.iam.gserviceaccount.com"
+  description = "Email of the service account used by Cloud Run"
+  value       = var.service_account_email
 }
 

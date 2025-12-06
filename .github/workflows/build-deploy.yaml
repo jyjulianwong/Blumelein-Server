@@ -139,6 +139,10 @@ jobs:
 
       - name: 📝 Generate terraform.tfvars
         run: |
+          # Convert region to abbreviation for service account naming
+          REGION_ABBREV=$(echo "${{ env.GCP_REGION }}" | sed -E 's/^([a-z]{2})[a-z]*-([a-z]{2})[a-z]*([0-9]+)$/\1\2\3/')
+          SERVICE_ACCOUNT_EMAIL="svc-${REGION_ABBREV}-tf@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
+          
           sed -e "s|{{GCP_PROJECT_ID}}|${{ secrets.GCP_PROJECT_ID }}|g" \
               -e "s|{{GCP_REGION}}|${{ env.GCP_REGION }}|g" \
               -e "s|{{FIRESTORE_LOCATION}}|${{ vars.FIRESTORE_LOCATION || env.GCP_REGION }}|g" \
@@ -150,6 +154,7 @@ jobs:
               -e "s|{{ADMIN_API_KEY}}|${{ secrets.ADMIN_API_KEY }}|g" \
               -e "s|{{ALLOWED_ORIGINS}}|${{ vars.ALLOWED_ORIGINS || 'https://yourdomain.com' }}|g" \
               -e "s|{{SERVICE_NAME}}|${{ env.SERVICE_NAME }}|g" \
+              -e "s|{{SERVICE_ACCOUNT_EMAIL}}|${SERVICE_ACCOUNT_EMAIL}|g" \
               -e "s|{{MIN_INSTANCES}}|${{ vars.MIN_INSTANCES || '0' }}|g" \
               -e "s|{{MAX_INSTANCES}}|${{ vars.MAX_INSTANCES || '10' }}|g" \
               -e "s|{{MEMORY_LIMIT}}|${{ vars.MEMORY_LIMIT || '512Mi' }}|g" \
@@ -172,17 +177,11 @@ jobs:
         working-directory: ./terraform
         run: terraform validate
 
-      - name: 📦 Import Existing Resources
+      - name: 🗑️ Remove Manually-Managed Resources from State
         working-directory: ./terraform
         run: |
-          # Import Firestore database if it exists
-          terraform import google_firestore_database.main projects/${{ secrets.GCP_PROJECT_ID }}/databases/\(default\) || true
-          
-          # Import Cloud Run service if it exists
-          terraform import google_cloud_run_service.server locations/${{ env.GCP_REGION }}/namespaces/${{ secrets.GCP_PROJECT_ID }}/services/${{ env.SERVICE_NAME }} || true
-          
-          # Import Cloud Run IAM binding for public access
-          terraform import google_cloud_run_service_iam_member.server_public "v1/projects/${{ secrets.GCP_PROJECT_ID }}/locations/${{ env.GCP_REGION }}/services/${{ env.SERVICE_NAME }} roles/run.invoker allUsers" || true
+          # Remove Artifact Registry from state (managed manually as prerequisite)
+          terraform state rm google_artifact_registry_repository.docker 2>/dev/null || echo "✓ Artifact Registry not in state"
 
       - name: 📋 Terraform Plan
         working-directory: ./terraform
