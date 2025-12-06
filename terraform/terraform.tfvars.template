@@ -23,6 +23,7 @@ allowed_origins = "{{ALLOWED_ORIGINS}}"
 # Cloud Run Configuration
 service_name           = "{{SERVICE_NAME}}"
 service_account_email  = "{{SERVICE_ACCOUNT_EMAIL}}"
+revision_suffix        = "{{REVISION_SUFFIX}}"
 min_instances          = {{MIN_INSTANCES}}
 max_instances          = {{MAX_INSTANCES}}
 memory_limit           = "{{MEMORY_LIMIT}}"

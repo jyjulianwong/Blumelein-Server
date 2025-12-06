@@ -189,6 +189,7 @@ This section provides detailed information about the Terraform-based deployment 
 The deployment setup includes:
 
 - **Semantic Versioning** with conventional commits for automated version management
+- **Revision Management** with version-based naming for Cloud Run revisions
 - **Terraform** for infrastructure as code
 - **GitHub Actions** for automated CI/CD
 - **Cloud Run** for serverless container deployment
@@ -424,6 +425,75 @@ terraform plan -destroy
 terraform destroy
 ```
 
+### Cloud Run Revision Management
+
+The deployment automatically creates Cloud Run revisions with semantic version names for easy tracking and rollback.
+
+#### Revision Naming Convention
+
+Each deployment creates a new revision named: `{service-name}-v{version}`
+
+Examples:
+- `blumelein-server-v1-0-0` (version 1.0.0)
+- `blumelein-server-v1-2-3` (version 1.2.3)
+- `blumelein-server-v2-0-0` (version 2.0.0)
+
+#### View Revisions
+
+```bash
+# List all revisions
+gcloud run revisions list \
+  --service=blumelein-server \
+  --region=us-east1
+
+# Describe a specific revision
+gcloud run revisions describe blumelein-server-v1-2-3 \
+  --region=us-east1
+```
+
+#### Rollback to Previous Revision
+
+If you need to rollback to a previous version:
+
+```bash
+# Split traffic to test old revision (50/50 split)
+gcloud run services update-traffic blumelein-server \
+  --region=us-east1 \
+  --to-revisions=blumelein-server-v1-2-3=50,blumelein-server-v1-3-0=50
+
+# Or rollback completely to old revision
+gcloud run services update-traffic blumelein-server \
+  --region=us-east1 \
+  --to-revisions=blumelein-server-v1-2-3=100
+```
+
+#### Delete Old Revisions
+
+Cloud Run keeps all revisions by default. To clean up old revisions:
+
+```bash
+# Delete a specific revision
+gcloud run revisions delete blumelein-server-v1-0-0 \
+  --region=us-east1 \
+  --quiet
+
+# Or use a script to delete all except the latest 5
+gcloud run revisions list \
+  --service=blumelein-server \
+  --region=us-east1 \
+  --format="value(metadata.name)" \
+  --sort-by="~metadata.creationTimestamp" \
+  | tail -n +6 \
+  | xargs -I {} gcloud run revisions delete {} --region=us-east1 --quiet
+```
+
+**Benefits of Version-Based Revisions:**
+- ✅ **Easy Identification**: Quickly see which version is deployed
+- ✅ **Simple Rollback**: Rollback to any previous version by name
+- ✅ **Audit Trail**: Track deployment history with semantic versions
+- ✅ **Traffic Splitting**: Test new versions with gradual rollout
+- ✅ **Blue-Green Deployments**: Run multiple versions simultaneously
+
 ---
 
 ## Monitoring and Logging
@@ -523,26 +593,74 @@ curl $SERVICE_URL/health
 **Cause**: This error occurs when Terraform tries to create a Cloud Run service without a valid Docker image. This happens when:
 1. No conventional commit was used (e.g., `feat:`, `fix:`), so semantic versioning didn't trigger a build
 2. The `build-and-push` job was skipped, resulting in an empty `server_image_tag` variable
+3. The `build-and-push` job ran but the `image_tag` output was not properly exported or received by `terraform-deploy`
 
 **Solution**:
-1. Make sure you're using [conventional commits](https://www.conventionalcommits.org/):
-   ```bash
-   git commit -m "feat: your feature description"
-   # OR
-   git commit -m "fix: your fix description"
-   ```
 
-2. Push to main branch to trigger the workflow:
-   ```bash
-   git push origin main
-   ```
+**Step 1: Verify your commit uses conventional format**
+```bash
+# Good examples:
+git commit -m "feat: add new feature"
+git commit -m "fix: fix bug"
+git commit -m "chore: update dependencies"
 
-3. Verify the workflow runs all three jobs:
-   - ✅ `version_bump` - Creates a new version
-   - ✅ `build-and-push` - Builds and pushes Docker image
-   - ✅ `terraform-deploy` - Deploys infrastructure
+# Bad examples:
+git commit -m "update code"
+git commit -m "changes"
+```
 
-**Prevention**: Always use conventional commit messages when deploying. Regular commits (e.g., `git commit -m "update code"`) will not trigger builds or deployments.
+**Step 2: Check GitHub Actions logs**
+
+Go to GitHub → Actions → Click on the failed workflow run
+
+Check the **version_bump** job output:
+```
+Version:   1.0.5
+Tag:       v1.0.5
+Released:  true    <-- Must be 'true' for build to run!
+```
+
+If `Released: false`, semantic-release didn't detect a version change. This can happen if:
+- The last commit was already released
+- No conventional commits since last release
+- Commit is a non-releasing type (like `docs:`, `style:`)
+
+**Step 3: Check build-and-push job**
+
+Look for the "📦 Export image tag" step. You should see:
+```
+Exporting image_tag: us-east1-docker.pkg.dev/PROJECT/REPO/SERVICE:1.0.5
+```
+
+If this is empty or missing, the image tag export failed.
+
+**Step 4: Check terraform-deploy job**
+
+Look for the "📝 Generate terraform.tfvars" step. You should see:
+```
+DEBUG - Version from version_bump: 1.0.5
+DEBUG - Image tag from build-and-push: us-east1-docker.pkg.dev/...
+DEBUG - Generated revision suffix: v1-0-5
+DEBUG - Checking server_image_tag in tfvars:
+server_image_tag = "us-east1-docker.pkg.dev/PROJECT/REPO/SERVICE:1.0.5"
+```
+
+If `server_image_tag` is empty, the issue is with job output passing between jobs.
+
+**Step 5: Force a new deployment**
+
+If the issue persists, you can force a new version:
+
+```bash
+# Create an empty commit with a conventional message
+git commit --allow-empty -m "fix: force new deployment"
+git push origin main
+```
+
+**Prevention**: 
+- Always use conventional commit messages when deploying
+- Check GitHub Actions logs to verify all three jobs completed successfully
+- Ensure your semantic-release configuration is correct in `pyproject.toml`
 
 **Problem**: `Error: Resource already exists`
 

@@ -91,3 +91,9 @@ variable "service_account_email" {
   description = "Email of the service account to use for Cloud Run (typically the Terraform SA)"
 }
 
+variable "revision_suffix" {
+  type        = string
+  description = "Optional revision suffix for Cloud Run revisions (e.g., version number or git commit hash)"
+  default     = ""
+}
+
