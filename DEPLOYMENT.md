@@ -34,6 +34,12 @@ gcloud firestore databases create \
   --location=us-east1 \
   --type=firestore-native
 
+# Create Artifact Registry repository (REQUIRED - for Docker images)
+gcloud artifacts repositories create gar-usea1-docker \
+  --repository-format=docker \
+  --location=us-east1 \
+  --description="Docker repository for Blumelein Server"
+
 # Create Terraform state bucket (REQUIRED - deployment will fail without this!)
 gsutil mb -l us-east1 gs://${PROJECT_ID}-terraform-state
 gsutil versioning set on gs://${PROJECT_ID}-terraform-state
@@ -41,6 +47,11 @@ gsutil versioning set on gs://${PROJECT_ID}-terraform-state
 # Verify the bucket was created
 gsutil ls -L gs://${PROJECT_ID}-terraform-state
 ```
+
+**⚠️ Important Prerequisites:**
+- **Artifact Registry**: The Docker repository `gar-usea1-docker` must exist before pushing images
+- **Terraform State Bucket**: Must exist before Terraform can initialize
+- **First Deployment**: Requires a [conventional commit](https://www.conventionalcommits.org/) (e.g., `feat:`, `fix:`) to trigger semantic versioning and build
 
 ### Step 2: Create Service Account (2 minutes)
 
@@ -109,12 +120,20 @@ Go to your GitHub repository → **Settings** → **Secrets and variables** → 
 
 ### Step 4: Deploy (1 minute)
 
+The deployment uses [semantic versioning](https://semver.org/) with [conventional commits](https://www.conventionalcommits.org/). Your commit message determines the version bump:
+
+- `feat:` → Minor version bump (e.g., 1.0.0 → 1.1.0)
+- `fix:` → Patch version bump (e.g., 1.0.0 → 1.0.1)
+- `BREAKING CHANGE:` → Major version bump (e.g., 1.0.0 → 2.0.0)
+
 ```bash
-# Commit and push to main branch
+# Commit with a conventional commit message to trigger deployment
 git add .
-git commit -m "Initial deployment"
+git commit -m "feat: initial deployment"
 git push origin main
 ```
+
+**Note**: Only commits with conventional commit prefixes (`feat:`, `fix:`, etc.) will trigger a build and deployment. Regular commits without these prefixes will not deploy.
 
 Watch the GitHub Actions tab as your application builds and deploys automatically!
 
@@ -140,12 +159,23 @@ Your API is now live. Access:
 
 ### Quick Start Troubleshooting
 
+**Build doesn't start?**
+- Make sure you used a [conventional commit](https://www.conventionalcommits.org/) (e.g., `feat:`, `fix:`)
+- Check GitHub Actions logs for `version_bump` job output
+- Regular commits without conventional prefixes will not trigger builds
+
 **Build fails?**
 - Check GitHub Actions logs
 - Verify all secrets are set
+- Ensure Artifact Registry repository exists: `gcloud artifacts repositories describe gar-usea1-docker --location=us-east1`
+
+**Terraform fails with "must provide an image name"?**
+- This means no Docker image was built (likely no conventional commit was used)
+- Use a conventional commit: `git commit -m "feat: initial deployment"`
+- Verify `build-and-push` job ran successfully in GitHub Actions
 
 **Can't access API?**
-- Check logs: `gcloud run services logs read blumelein-server`
+- Check logs: `gcloud run services logs read blumelein-server --region=us-east1`
 - Verify environment variables in Cloud Run console
 
 ---
@@ -158,12 +188,13 @@ This section provides detailed information about the Terraform-based deployment 
 
 The deployment setup includes:
 
+- **Semantic Versioning** with conventional commits for automated version management
 - **Terraform** for infrastructure as code
 - **GitHub Actions** for automated CI/CD
 - **Cloud Run** for serverless container deployment
 - **Artifact Registry** for Docker image storage
 - **Firestore** for database
-- **Automatic deployments** on push to main branch
+- **Automatic deployments** on push to main branch (with conventional commits)
 
 ### Prerequisites
 
@@ -191,6 +222,12 @@ gcloud services enable cloudbuild.googleapis.com
 gcloud firestore databases create \
   --location=us-east1 \
   --type=firestore-native
+
+# Create Artifact Registry repository (REQUIRED for Docker images)
+gcloud artifacts repositories create gar-usea1-docker \
+  --repository-format=docker \
+  --location=us-east1 \
+  --description="Docker repository for Blumelein Server"
 ```
 
 #### Step 2: Create Terraform State Bucket
@@ -291,19 +328,30 @@ See [scripts/README.md](scripts/README.md) for detailed documentation on the set
 
 #### Automated Deployment (Recommended)
 
-Simply push to the main branch:
+The deployment uses **semantic versioning** with **conventional commits**. Use these commit message formats:
+
+- `feat: description` → Minor version bump (new features)
+- `fix: description` → Patch version bump (bug fixes)
+- `feat!: description` or `BREAKING CHANGE:` → Major version bump
+
+**Deploy to Cloud Run:**
 
 ```bash
 git add .
-git commit -m "Deploy to Cloud Run"
+git commit -m "feat: add new feature"  # Use conventional commit format!
 git push origin main
 ```
 
 The GitHub Actions workflow will automatically:
-1. Build the Docker image
-2. Push to Artifact Registry
-3. Run Terraform to deploy infrastructure
-4. Deploy to Cloud Run
+1. **Version**: Determine version bump from commit messages (semantic-release)
+2. **Build**: Build Docker image with the new version tag
+3. **Push**: Push to Artifact Registry
+4. **Deploy**: Run Terraform to deploy infrastructure to Cloud Run
+
+**Important**: 
+- Only commits with conventional prefixes (`feat:`, `fix:`, `chore:`, etc.) trigger the build and deploy
+- Regular commits without these prefixes will **not** trigger deployment
+- See the [Versioning Guide](VERSIONING.md) for more details on semantic versioning
 
 #### Manual Deployment (Local Testing)
 
@@ -469,6 +517,32 @@ curl $SERVICE_URL/health
 3. Verify all dependencies in `pyproject.toml`
 
 ### Terraform Errors
+
+**Problem**: `Error creating Service: must provide an image name to deploy`
+
+**Cause**: This error occurs when Terraform tries to create a Cloud Run service without a valid Docker image. This happens when:
+1. No conventional commit was used (e.g., `feat:`, `fix:`), so semantic versioning didn't trigger a build
+2. The `build-and-push` job was skipped, resulting in an empty `server_image_tag` variable
+
+**Solution**:
+1. Make sure you're using [conventional commits](https://www.conventionalcommits.org/):
+   ```bash
+   git commit -m "feat: your feature description"
+   # OR
+   git commit -m "fix: your fix description"
+   ```
+
+2. Push to main branch to trigger the workflow:
+   ```bash
+   git push origin main
+   ```
+
+3. Verify the workflow runs all three jobs:
+   - ✅ `version_bump` - Creates a new version
+   - ✅ `build-and-push` - Builds and pushes Docker image
+   - ✅ `terraform-deploy` - Deploys infrastructure
+
+**Prevention**: Always use conventional commit messages when deploying. Regular commits (e.g., `git commit -m "update code"`) will not trigger builds or deployments.
 
 **Problem**: `Error: Resource already exists`
 

@@ -116,7 +116,10 @@ jobs:
     name: Deploy Infrastructure with Terraform
     runs-on: ubuntu-latest
     environment: production
-    needs: build-and-push
+    needs: [version_bump, build-and-push]
+    if: |
+      github.ref == 'refs/heads/main' &&
+      needs.version_bump.outputs.released == 'true'
     
     steps:
       - name: 📥 Checkout repository
