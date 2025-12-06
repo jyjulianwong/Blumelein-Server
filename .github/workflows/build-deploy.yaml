@@ -110,10 +110,28 @@ jobs:
       - name: 📦 Export image tag
         id: export
         run: |
-          # Reconstruct IMAGE_TAG to ensure it's properly set for output
-          IMAGE_TAG="${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.DOCKER_REPOSITORY }}/${{ env.SERVICE_NAME }}:${{ needs.version_bump.outputs.version }}"
+          # Debug: Show the components
+          echo "DEBUG - GCP_REGION: ${{ env.GCP_REGION }}"
+          echo "DEBUG - GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}"
+          echo "DEBUG - DOCKER_REPOSITORY: ${{ env.DOCKER_REPOSITORY }}"
+          echo "DEBUG - SERVICE_NAME: ${{ env.SERVICE_NAME }}"
+          echo "DEBUG - VERSION: ${{ needs.version_bump.outputs.version }}"
+          
+          # Try to read from GITHUB_ENV first (set in build step)
+          echo "DEBUG - IMAGE_TAG from env: ${IMAGE_TAG:-NOT_SET}"
+          
+          # If IMAGE_TAG is not set from env, reconstruct it
+          if [ -z "$IMAGE_TAG" ]; then
+            echo "WARNING - IMAGE_TAG not in environment, reconstructing..."
+            IMAGE_TAG="${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.DOCKER_REPOSITORY }}/${{ env.SERVICE_NAME }}:${{ needs.version_bump.outputs.version }}"
+          fi
+          
+          echo "DEBUG - Final IMAGE_TAG: $IMAGE_TAG"
           echo "image_tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
-          echo "Exporting image_tag: $IMAGE_TAG"
+          
+          # Verify it was written
+          echo "DEBUG - Contents written to GITHUB_OUTPUT:"
+          cat $GITHUB_OUTPUT | grep image_tag || echo "WARNING: image_tag not in GITHUB_OUTPUT!"
 
   terraform-deploy:
     name: Deploy Infrastructure with Terraform
