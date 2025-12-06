@@ -107,6 +107,8 @@ resource "google_cloud_run_service" "server" {
     latest_revision = true
   }
 
+  autogenerate_revision_name = true
+
   depends_on = [google_project_service.run_api]
 }
 
